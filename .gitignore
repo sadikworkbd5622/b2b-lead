@@ -1,0 +1,38 @@
+# Environment
+.env
+.venv/
+venv/
+.virtualenvs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Data
+data/leads.db
+data/exports/
+data/cache/
+data/raw/
+data/processed/
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project specific
+dashboard/node_modules/
+dashboard/.next/

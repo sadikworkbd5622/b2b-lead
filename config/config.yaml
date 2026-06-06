@@ -1,0 +1,50 @@
+search:
+  queries:
+    - query: "restaurants"
+      location: "Dallas, TX"
+    - query: "plumbers"
+      location: "Austin, TX"
+  max_results_per_query: 20
+  delay_between_requests: 2
+
+api:
+  provider: "serpapi"
+
+qualification:
+  non_website_domains:
+    - facebook.com
+    - instagram.com
+    - yelp.com
+    - yellowpages.com
+    - tripadvisor.com
+    - linktr.ee
+    - linktree.com
+    - twitter.com
+    - x.com
+    - tiktok.com
+    - nextdoor.com
+    - bbb.org
+    - mapquest.com
+    - foursquare.com
+  website_check_timeout: 5
+
+llm:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  temperature: 0.1
+  max_retries: 3
+
+cache:
+  enabled: true
+  ttl_hours: 24
+  cache_dir: "data/cache"
+
+enrichment:
+  enabled: false
+  provider: "hunter"
+
+export:
+  formats:
+    - "json"
+    - "csv"
+  output_dir: "data/exports"
