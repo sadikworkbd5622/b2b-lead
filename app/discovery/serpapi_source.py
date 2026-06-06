@@ -3,6 +3,7 @@ import json
 import os
 import time
 from datetime import datetime, timedelta
+from typing import Optional
 
 import requests
 
@@ -43,7 +44,7 @@ class SerpApiSource(DataSource):
     def _cache_path(self, key: str) -> str:
         return os.path.join(self.cache_dir, f"{key}.json")
 
-    def _load_from_cache(self, key: str) -> list | None:
+    def _load_from_cache(self, key: str) -> Optional[list]:
         path = self._cache_path(key)
         if not os.path.exists(path):
             return None

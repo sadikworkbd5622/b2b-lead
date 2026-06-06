@@ -1,4 +1,5 @@
 import urllib.parse
+from typing import Optional
 
 from app.qualification.models import URLType
 
@@ -8,7 +9,7 @@ class URLClassifier:
         # Normalize domains to lowercase
         self.non_website_domains = [domain.lower() for domain in non_website_domains]
 
-    def classify(self, url: str | None) -> URLType:
+    def classify(self, url: Optional[str]) -> URLType:
         if not url or not url.strip():
             return URLType.NO_URL
 

@@ -1,4 +1,6 @@
 
+from typing import Optional
+
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -56,10 +58,10 @@ class Settings(BaseSettings):
     enrichment: EnrichmentConfig = EnrichmentConfig()
     export: ExportConfig
 
-    openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
-    serpapi_api_key: str | None = Field(default=None, alias="SERPAPI_API_KEY")
-    gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
-    hunter_api_key: str | None = Field(default=None, alias="HUNTER_API_KEY")
+    openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
+    serpapi_api_key: Optional[str] = Field(default=None, alias="SERPAPI_API_KEY")
+    gemini_api_key: Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
+    hunter_api_key: Optional[str] = Field(default=None, alias="HUNTER_API_KEY")
 
     model_config = SettingsConfigDict(
         env_file=".env",

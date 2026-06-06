@@ -1,4 +1,6 @@
 
+from typing import Optional
+
 import httpx
 
 from app.enrichment.base import EnrichmentSource
@@ -13,7 +15,7 @@ class HunterEnrichment(EnrichmentSource):
         self.api_key = api_key
         self.base_url = "https://api.hunter.io/v2"
 
-    async def enrich(self, business_name: str, domain: str | None = None) -> EnrichmentResult:
+    async def enrich(self, business_name: str, domain: Optional[str] = None) -> EnrichmentResult:
         if not self.api_key or not domain:
             return EnrichmentResult(
                 business_name=business_name,
@@ -50,7 +52,7 @@ class HunterEnrichment(EnrichmentSource):
                 error=str(e)
             )
 
-    def _find_decision_maker(self, emails: list) -> str | None:
+    def _find_decision_maker(self, emails: list) -> Optional[str]:
         priority = ["ceo", "owner", "founder", "president", "director", "manager"]
         for email in emails:
             position = (email.get("position") or "").lower()

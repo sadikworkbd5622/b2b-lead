@@ -6,7 +6,7 @@ from app.analysis.models import ExtractedLead
 from app.config.settings import Settings
 from app.discovery.models import RawBusinessData
 from app.discovery.serpapi_source import SerpApiSource
-from app.enrichment.hunter_source import HunterEnrichment
+from app.enrichment.factory import get_enricher
 from app.pipeline.state import PipelineState
 from app.qualification.models import URLType
 from app.qualification.url_classifier import URLClassifier
@@ -65,14 +65,13 @@ class PipelineNodes:
             timeout=settings.qualification.website_check_timeout
         )
 
-        self.enricher = HunterEnrichment(
-            api_key=settings.hunter_api_key or ""
-        )
+        self.enricher = get_enricher(settings)
 
     def discover_node(self, state: PipelineState) -> dict[str, Any]:
         logger.info("--- DISCOVERY NODE ---")
         raw_businesses = []
         errors = list(state.get("errors", []))
+        stats = dict(state.get("stats", {}))
 
         for sq in state["search_queries"]:
             try:
@@ -87,15 +86,17 @@ class PipelineNodes:
                 logger.error(err_msg)
                 errors.append(err_msg)
 
+        stats["discovered_count"] = len(raw_businesses)
         return {
             "raw_businesses": raw_businesses,
             "errors": errors,
             "current_step": "discovery_complete",
-            "stats": {"discovered_count": len(raw_businesses)}
+            "stats": stats
         }
 
     def dedup_node(self, state: PipelineState) -> dict[str, Any]:
         logger.info("--- DEDUP NODE ---")
+        stats = dict(state.get("stats", {}))
         raw = state.get("raw_businesses", [])
         seen = set()
         unique = []
@@ -105,18 +106,20 @@ class PipelineNodes:
                 seen.add(key)
                 unique.append(b)
 
-        duplicates = len(raw) - len(unique)
-        logger.info(f"Dedup: {len(raw)} -> {len(unique)} ({duplicates} duplicates removed)")
+        stats["duplicates_removed"] = len(raw) - len(unique)
+        stats["after_dedup"] = len(unique)
+        logger.info(f"Dedup: {len(raw)} -> {len(unique)} ({stats['duplicates_removed']} duplicates removed)")
         return {
             "raw_businesses": unique,
-            "stats": {"duplicates_removed": duplicates, "after_dedup": len(unique)}
+            "stats": stats
         }
 
     def qualify_node(self, state: PipelineState) -> dict[str, Any]:
         logger.info("--- QUALIFICATION NODE ---")
+        stats = dict(state.get("stats", {}))
         raw_businesses = state.get("raw_businesses", [])
         if not raw_businesses:
-            return {"current_step": "qualification_complete"}
+            return {"current_step": "qualification_complete", "stats": stats}
 
         async def _run():
             qualified = []
@@ -137,21 +140,20 @@ class PipelineNodes:
 
             return {"qualified": qualified, "rejected": rejected}
 
-        # Use asyncio.run() to avoid event loop conflicts
         results = asyncio.run(_run())
 
+        stats["qualified_at_qualify"] = len(results["qualified"])
+        stats["rejected_at_qualify"] = len(results["rejected"])
         return {
             "raw_businesses": results["qualified"],
             "qualified_raw_businesses": results["qualified"],
             "current_step": "qualification_complete",
-            "stats": {
-                "qualified_at_qualify": len(results["qualified"]),
-                "rejected_at_qualify": len(results["rejected"])
-            }
+            "stats": stats
         }
 
     def analyze_node(self, state: PipelineState) -> dict[str, Any]:
         logger.info("--- ANALYSIS NODE ---")
+        stats = dict(state.get("stats", {}))
         extracted = []
         errors = list(state.get("errors", []))
         businesses = state.get("raw_businesses", [])
@@ -187,21 +189,21 @@ class PipelineNodes:
             else:
                 rejected_leads.append(lead)
 
+        stats["llm_extracted"] = len(extracted)
+        stats["qualified_after_llm"] = len(qualified_leads)
+        stats["rejected_after_llm"] = len(rejected_leads)
         return {
             "extracted_leads": extracted,
             "qualified_leads": qualified_leads,
             "rejected_leads": rejected_leads,
             "errors": errors,
             "current_step": "analysis_complete",
-            "stats": {
-                "llm_extracted": len(extracted),
-                "qualified_after_llm": len(qualified_leads),
-                "rejected_after_llm": len(rejected_leads)
-            }
+            "stats": stats
         }
 
     def enrich_node(self, state: PipelineState) -> dict[str, Any]:
         logger.info("--- ENRICHMENT NODE ---")
+        stats = dict(state.get("stats", {}))
 
         async def _run():
             tasks = []
@@ -225,9 +227,10 @@ class PipelineNodes:
             return enriched
 
         enriched = asyncio.run(_run())
+        stats["enriched_count"] = len(enriched)
         logger.info(f"Enriched {len(enriched)} leads")
         return {
             "enriched_leads": enriched,
             "current_step": "enrichment_complete",
-            "stats": {"enriched_count": len(enriched)}
+            "stats": stats
         }

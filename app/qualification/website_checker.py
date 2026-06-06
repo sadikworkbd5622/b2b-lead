@@ -1,4 +1,6 @@
 
+from typing import Optional
+
 import httpx
 
 from app.qualification.models import URLType, WebsiteStatus
@@ -11,7 +13,7 @@ class WebsiteChecker:
         self.classifier = classifier
         self.timeout = timeout
 
-    async def check_website(self, url: str | None) -> WebsiteStatus:
+    async def check_website(self, url: Optional[str]) -> WebsiteStatus:
         """
         Validates the website via HTTP HEAD request, following redirects.
         Returns the status and the classified type of the final URL.

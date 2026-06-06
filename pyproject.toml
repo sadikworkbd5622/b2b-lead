@@ -3,7 +3,7 @@ target-version = "py39"
 line-length = 120
 
 [tool.ruff.lint]
-ignore = ["E501"]
+ignore = ["E501", "N806"]
 select = ["E", "F", "I", "N", "W", "UP"]
 
 [tool.mypy]

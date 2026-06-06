@@ -29,7 +29,8 @@ class LeadExtractor:
             ).with_structured_output(ExtractedLead)
 
         self.prompt_template = ChatPromptTemplate.from_messages([
-            ("system", EXTRACTION_SYSTEM_PROMPT)
+            ("system", EXTRACTION_SYSTEM_PROMPT),
+            ("human", "Analyze this business:\nName: {name}\nCategory: {category}\nAddress: {address}\nPhone: {phone}\nWebsite: {website}\nSnippet: {raw_snippet}")
         ])
 
     def extract(self, business: RawBusinessData) -> ExtractedLead:

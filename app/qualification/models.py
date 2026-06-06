@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -12,7 +13,7 @@ class URLType(Enum):
 
 class WebsiteStatus(BaseModel):
     is_live: bool
-    final_url: str | None
-    status_code: int | None
+    final_url: Optional[str]
+    status_code: Optional[int]
     url_type: URLType
-    error: str | None = None
+    error: Optional[str] = None
