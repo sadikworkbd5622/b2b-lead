@@ -1,5 +1,6 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
 
 from app.analysis.models import ExtractedLead
@@ -13,11 +14,19 @@ class LeadExtractor:
         if not api_key:
             raise ValueError(f"{provider.capitalize()} API key is required for LeadExtractor.")
 
-        if provider.lower() == "gemini":
+        provider = provider.lower()
+        if provider == "gemini":
             self.llm = ChatGoogleGenerativeAI(
                 model=model_name,
                 temperature=temperature,
                 google_api_key=api_key,
+                max_retries=3
+            ).with_structured_output(ExtractedLead)
+        elif provider == "groq":
+            self.llm = ChatGroq(
+                model=model_name,
+                temperature=temperature,
+                api_key=api_key,
                 max_retries=3
             ).with_structured_output(ExtractedLead)
         else:

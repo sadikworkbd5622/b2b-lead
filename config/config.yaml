@@ -31,8 +31,9 @@ qualification:
   website_check_timeout: 5
 
 llm:
-  provider: "gemini"
-  model: "gemini-2.0-flash-lite"
+  # Options: openai, gemini, groq
+  provider: "groq"
+  model: "llama-3.3-70b-versatile"
   temperature: 0.1
   max_retries: 3
 

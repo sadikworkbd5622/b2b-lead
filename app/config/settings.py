@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
     serpapi_api_key: Optional[str] = Field(default=None, alias="SERPAPI_API_KEY")
     gemini_api_key: Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
+    groq_api_key: Optional[str] = Field(default=None, alias="GROQ_API_KEY")
     hunter_api_key: Optional[str] = Field(default=None, alias="HUNTER_API_KEY")
 
     model_config = SettingsConfigDict(

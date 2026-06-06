@@ -79,8 +79,11 @@ class PipelineNodes:
             cache_ttl_hours=settings.cache.ttl_hours
         )
 
-        if settings.llm.provider.lower() == "gemini":
+        provider = settings.llm.provider.lower()
+        if provider == "gemini":
             llm_key = settings.gemini_api_key
+        elif provider == "groq":
+            llm_key = settings.groq_api_key
         else:
             llm_key = settings.openai_api_key
 
