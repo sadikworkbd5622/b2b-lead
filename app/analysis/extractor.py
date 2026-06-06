@@ -46,13 +46,14 @@ class LeadExtractor:
         )
 
         try:
-            result: ExtractedLead = self.llm.invoke(messages)
+            from typing import cast
+            result = cast(ExtractedLead, self.llm.invoke(messages))
             return result
         except Exception as e:
             logger.error(f"Failed to extract data for {business.name}: {e}")
             return ExtractedLead(
-                reasoning_log=f"LLM Extraction failed: {str(e)}",
-                lead_status="Rejected - Has Website",
+                reasoning_log=f"LLM Extraction failed: {str(e)}. Business data preserved for later reprocessing.",
+                lead_status="Unprocessed - LLM Unavailable",
                 extracted_data={
                     "business_name": business.name or "Not Found",
                     "decision_maker_name": "Not Found",

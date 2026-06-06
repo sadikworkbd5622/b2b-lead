@@ -1,4 +1,5 @@
 import asyncio
+import difflib
 from typing import Any
 
 from app.analysis.extractor import LeadExtractor
@@ -33,6 +34,37 @@ def _cheap_classify(business: RawBusinessData) -> bool:
         if signal in combined:
             return False
     return True
+
+
+def _fuzzy_dedup(businesses: list[RawBusinessData], threshold: float = 0.85) -> list[RawBusinessData]:
+    if not threshold or not businesses:
+        return businesses
+    kept = []
+    for b in businesses:
+        name = (b.name or "").strip().lower()
+        if not name:
+            kept.append(b)
+            continue
+        is_dup = False
+        for existing in kept:
+            existing_name = (existing.name or "").strip().lower()
+            if not existing_name:
+                continue
+            ratio = difflib.SequenceMatcher(None, name, existing_name).ratio()
+            if ratio >= threshold:
+                is_dup = True
+                existing_has = bool(existing.phone or existing.website)
+                b_has = bool(b.phone or b.website)
+                if b_has and not existing_has:
+                    kept.remove(existing)
+                    kept.append(b)
+                break
+        if not is_dup:
+            kept.append(b)
+    removed = len(businesses) - len(kept)
+    if removed:
+        logger.info(f"Fuzzy dedup: removed {removed} near-duplicate(s) (threshold={threshold})")
+    return kept
 
 
 class PipelineNodes:
@@ -106,9 +138,14 @@ class PipelineNodes:
                 seen.add(key)
                 unique.append(b)
 
-        stats["duplicates_removed"] = len(raw) - len(unique)
+        stats["exact_duplicates_removed"] = len(raw) - len(unique)
+        logger.info(f"Exact dedup: {len(raw)} -> {len(unique)} ({stats['exact_duplicates_removed']} duplicates removed)")
+
+        threshold = self.settings.search.fuzzy_dedup_threshold
+        if threshold:
+            unique = _fuzzy_dedup(unique, threshold)
+
         stats["after_dedup"] = len(unique)
-        logger.info(f"Dedup: {len(raw)} -> {len(unique)} ({stats['duplicates_removed']} duplicates removed)")
         return {
             "raw_businesses": unique,
             "stats": stats
@@ -183,8 +220,11 @@ class PipelineNodes:
 
         qualified_leads = []
         rejected_leads = []
+        unprocessed_leads = []
         for lead in extracted:
-            if "Qualified" in lead.lead_status:
+            if lead.lead_status == "Unprocessed - LLM Unavailable":
+                unprocessed_leads.append(lead)
+            elif "Qualified" in lead.lead_status:
                 qualified_leads.append(lead)
             else:
                 rejected_leads.append(lead)
@@ -192,6 +232,7 @@ class PipelineNodes:
         stats["llm_extracted"] = len(extracted)
         stats["qualified_after_llm"] = len(qualified_leads)
         stats["rejected_after_llm"] = len(rejected_leads)
+        stats["unprocessed_after_llm"] = len(unprocessed_leads)
         return {
             "extracted_leads": extracted,
             "qualified_leads": qualified_leads,

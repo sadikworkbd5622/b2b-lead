@@ -12,6 +12,8 @@ export async function GET() {
       SELECT
         COUNT(*) as total_leads,
         SUM(CASE WHEN lead_status LIKE '%Qualified%' THEN 1 ELSE 0 END) as qualified_leads,
+        SUM(CASE WHEN lead_status = 'Unprocessed - LLM Unavailable' THEN 1 ELSE 0 END) as unprocessed_leads,
+        SUM(CASE WHEN lead_status = 'Discovered - Awaiting Processing' THEN 1 ELSE 0 END) as raw_discovered,
         ROUND(AVG(CASE WHEN lead_status LIKE '%Qualified%' THEN confidence_score ELSE NULL END), 0) as avg_confidence,
         COUNT(DISTINCT phone_number) as unique_phones,
         COUNT(DISTINCT email_address) as unique_emails,

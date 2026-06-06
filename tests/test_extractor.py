@@ -68,6 +68,20 @@ class TestExtractedLead:
                 confidence_score=0
             )
 
+    def test_unprocessed_status(self):
+        lead = ExtractedLead(
+            reasoning_log="LLM Extraction failed: 429 quota exceeded. Business data preserved for later reprocessing.",
+            lead_status="Unprocessed - LLM Unavailable",
+            extracted_data=ExtractedData(
+                business_name="Test Biz",
+                phone_number="(555) 123-4567",
+            ),
+            confidence_score=1
+        )
+        assert lead.lead_status == "Unprocessed - LLM Unavailable"
+        assert lead.extracted_data.business_name == "Test Biz"
+        assert lead.confidence_score == 1
+
     def test_invalid_status(self):
         with pytest.raises(Exception):
             ExtractedLead(

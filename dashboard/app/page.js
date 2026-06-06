@@ -3,14 +3,50 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-function StatCard({ label, value, sub, color }) {
+function StatCard({ label, value, sub, color, icon }) {
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6">
-      <p className="text-sm text-[var(--muted)]">{label}</p>
-      <p className={`text-3xl font-bold mt-1 ${color || "text-[var(--foreground)]"}`}>
-        {value ?? "—"}
-      </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm text-[var(--muted)]">{label}</p>
+          <p className={`text-3xl font-bold mt-1 ${color || "text-[var(--foreground)]"}`}>
+            {value ?? "—"}
+          </p>
+        </div>
+        {icon && <span className="text-2xl opacity-30">{icon}</span>}
+      </div>
       {sub && <p className="text-xs text-[var(--muted)] mt-1">{sub}</p>}
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  if (status?.includes("Qualified")) {
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Qualified</span>;
+  }
+  if (status?.includes("Rejected")) {
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Rejected</span>;
+  }
+  if (status === "Unprocessed - LLM Unavailable") {
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Unprocessed</span>;
+  }
+  if (status === "Discovered - Awaiting Processing") {
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Raw</span>;
+  }
+  return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{status || "Unknown"}</span>;
+}
+
+function ConfidenceBar({ score }) {
+  const s = score || 0;
+  let color = "bg-red-500";
+  if (s >= 70) color = "bg-green-500";
+  else if (s >= 40) color = "bg-yellow-500";
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-16 h-1.5 bg-gray-200 rounded-full">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${s}%` }} />
+      </div>
+      <span className="text-xs">{s}%</span>
     </div>
   );
 }
@@ -68,22 +104,28 @@ export default function Home() {
           label="Total Leads"
           value={stats?.total_leads ?? 0}
           color="text-[var(--primary)]"
+          icon="📊"
         />
         <StatCard
           label="Qualified"
           value={stats?.qualified_leads ?? 0}
           color="text-[var(--success)]"
           sub={`${stats?.high_confidence_leads ?? 0} high confidence`}
+          icon="✅"
+        />
+        <StatCard
+          label="Unprocessed"
+          value={stats?.unprocessed_leads ?? 0}
+          color="text-[var(--warning)]"
+          sub={`${stats?.raw_discovered ?? 0} raw discovered`}
+          icon="⏳"
         />
         <StatCard
           label="Avg Confidence"
           value={stats?.avg_confidence ? `${stats.avg_confidence}%` : "—"}
-          color="text-[var(--warning)]"
-        />
-        <StatCard
-          label="Last Run"
-          value={stats?.last_run_date ?? "—"}
-          color="text-[var(--muted)]"
+          color="text-[var(--info)]"
+          sub={`Last run: ${stats?.last_run_date ?? "—"}`}
+          icon="🎯"
         />
       </div>
 
@@ -129,26 +171,10 @@ export default function Home() {
                     <td className="px-6 py-3">{lead.phone_number || "—"}</td>
                     <td className="px-6 py-3">{lead.email_address || "—"}</td>
                     <td className="px-6 py-3">
-                      <span
-                        className={
-                          lead.lead_status?.includes("Qualified")
-                            ? "text-[var(--success)]"
-                            : "text-[var(--danger)]"
-                        }
-                      >
-                        {lead.lead_status?.includes("Qualified") ? "Qualified" : "Rejected"}
-                      </span>
+                      <StatusBadge status={lead.lead_status} />
                     </td>
                     <td className="px-6 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-20 h-2 bg-gray-200 rounded-full">
-                          <div
-                            className="h-full rounded-full bg-[var(--primary)]"
-                            style={{ width: `${lead.confidence_score || 0}%` }}
-                          />
-                        </div>
-                        <span className="text-xs">{lead.confidence_score || 0}%</span>
-                      </div>
+                      <ConfidenceBar score={lead.confidence_score} />
                     </td>
                   </tr>
                 ))

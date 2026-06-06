@@ -1,5 +1,5 @@
 from app.discovery.models import RawBusinessData
-from app.pipeline.nodes import _cheap_classify, _dedup_key
+from app.pipeline.nodes import _cheap_classify, _dedup_key, _fuzzy_dedup
 
 
 class TestDedupKey:
@@ -40,3 +40,34 @@ class TestCheapClassify:
             source="serpapi"
         )
         assert _cheap_classify(b) is False
+
+
+class TestFuzzyDedup:
+    def test_near_duplicate_names(self):
+        b1 = RawBusinessData(name="Mike's BBQ Shack", phone="(214) 555-0132", source="serpapi")
+        b2 = RawBusinessData(name="Mikes BBQ Shack", phone="(214) 555-0132", source="serpapi")
+        b3 = RawBusinessData(name="Totally Different", phone="(512) 555-9999", source="serpapi")
+        result = _fuzzy_dedup([b1, b2, b3], threshold=0.8)
+        assert len(result) == 2
+        assert result[0].name == "Mike's BBQ Shack"
+        assert result[1].name == "Totally Different"
+
+    def test_threshold_zero_disabled(self):
+        b1 = RawBusinessData(name="Mike's BBQ Shack", source="serpapi")
+        b2 = RawBusinessData(name="Mike's BBQ Shack!!", source="serpapi")
+        result = _fuzzy_dedup([b1, b2], threshold=0.0)
+        assert len(result) == 2
+
+    def test_keeps_more_informative(self):
+        no_info = RawBusinessData(name="Mike's BBQ Shack", source="serpapi")
+        has_info = RawBusinessData(name="Mikes BBQ Shack", phone="(214) 555-0132", source="serpapi")
+        result = _fuzzy_dedup([no_info, has_info], threshold=0.8)
+        assert len(result) == 1
+        assert result[0].phone == "(214) 555-0132"
+
+    def test_empty_list(self):
+        assert _fuzzy_dedup([], threshold=0.85) == []
+
+    def test_single_business(self):
+        b = RawBusinessData(name="Only One", source="serpapi")
+        assert _fuzzy_dedup([b], threshold=0.85) == [b]

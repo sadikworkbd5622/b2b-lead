@@ -54,6 +54,8 @@ export async function GET(request) {
         COUNT(*) as total,
         SUM(CASE WHEN lead_status LIKE '%Qualified%' THEN 1 ELSE 0 END) as qualified,
         SUM(CASE WHEN lead_status LIKE '%Rejected%' THEN 1 ELSE 0 END) as rejected,
+        SUM(CASE WHEN lead_status = 'Unprocessed - LLM Unavailable' THEN 1 ELSE 0 END) as unprocessed,
+        SUM(CASE WHEN lead_status = 'Discovered - Awaiting Processing' THEN 1 ELSE 0 END) as raw_discovered,
         AVG(confidence_score) as avg_confidence
       FROM leads
     `).get();

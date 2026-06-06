@@ -4,6 +4,35 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+function StatusBadge({ status }) {
+  if (status?.includes("Qualified")) {
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Qualified</span>;
+  }
+  if (status?.includes("Rejected")) {
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Rejected</span>;
+  }
+  if (status === "Unprocessed - LLM Unavailable") {
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Unprocessed</span>;
+  }
+  if (status === "Discovered - Awaiting Processing") {
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Raw</span>;
+  }
+  return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{status || "Unknown"}</span>;
+}
+
+function ConfidenceScore({ score }) {
+  const s = score || 0;
+  let color = "text-red-600";
+  let bg = "bg-red-100";
+  if (s >= 70) { color = "text-green-700"; bg = "bg-green-100"; }
+  else if (s >= 40) { color = "text-yellow-700"; bg = "bg-yellow-100"; }
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${bg} ${color}`}>
+      {s}%
+    </span>
+  );
+}
+
 export default function LeadDetail() {
   const { id } = useParams();
   const [lead, setLead] = useState(null);
@@ -38,14 +67,17 @@ export default function LeadDetail() {
     );
   }
 
+  const isQualified = lead.lead_status?.includes("Qualified");
+  const isUnprocessed = lead.lead_status === "Unprocessed - LLM Unavailable" || lead.lead_status === "Discovered - Awaiting Processing";
+
   const fields = [
     { label: "Business Name", value: lead.business_name },
     { label: "Decision Maker", value: lead.decision_maker_name },
     { label: "Phone Number", value: lead.phone_number },
     { label: "Email Address", value: lead.email_address },
     { label: "Social Media", value: lead.social_media_link },
-    { label: "Lead Status", value: lead.lead_status },
-    { label: "Confidence Score", value: `${lead.confidence_score}%` },
+    { label: "Status", value: <StatusBadge status={lead.lead_status} /> },
+    { label: "Confidence", value: <ConfidenceScore score={lead.confidence_score} /> },
     { label: "Created At", value: lead.created_at },
   ];
 
@@ -60,16 +92,20 @@ export default function LeadDetail() {
 
       <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl">
         <div className="px-6 py-5 border-b border-[var(--border)]">
-          <h1 className="text-2xl font-bold">{lead.business_name}</h1>
-          <span
-            className={`inline-block mt-1 text-sm font-medium ${
-              lead.lead_status?.includes("Qualified")
-                ? "text-[var(--success)]"
-                : "text-[var(--danger)]"
-            }`}
-          >
-            {lead.lead_status?.includes("Qualified") ? "Qualified" : "Rejected"}
-          </span>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold">{lead.business_name}</h1>
+            <StatusBadge status={lead.lead_status} />
+          </div>
+          {isQualified && (
+            <p className="text-sm text-[var(--success)] mt-1">
+              This business is qualified — no dedicated website found.
+            </p>
+          )}
+          {isUnprocessed && (
+            <p className="text-sm text-[var(--warning)] mt-1">
+              This lead was not processed by the LLM (quota exceeded). Re-run the agent to analyze it.
+            </p>
+          )}
         </div>
 
         <div className="px-6 py-5 space-y-4">
@@ -87,18 +123,20 @@ export default function LeadDetail() {
           {lead.reasoning_log && (
             <div className="pt-4 border-t border-[var(--border)]">
               <p className="text-sm text-[var(--muted)] mb-1">Reasoning</p>
-              <p className="text-sm">{lead.reasoning_log}</p>
+              <p className="text-sm whitespace-pre-wrap">{lead.reasoning_log}</p>
             </div>
           )}
         </div>
 
         <div className="px-6 py-4 border-t border-[var(--border)] bg-gray-50 rounded-b-xl flex gap-3">
-          <Link
-            href={`/checkout?lead=${lead.id}`}
-            className="bg-[var(--primary)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--primary-dark)] transition-colors"
-          >
-            Purchase This Lead
-          </Link>
+          {isQualified && (
+            <Link
+              href={`/checkout?lead=${lead.id}`}
+              className="bg-[var(--primary)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--primary-dark)] transition-colors"
+            >
+              Purchase This Lead
+            </Link>
+          )}
           <Link
             href="/leads"
             className="border border-[var(--border)] px-5 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors"

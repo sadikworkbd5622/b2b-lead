@@ -45,15 +45,16 @@ def run(config_path: str = "config/config.yaml"):
     logger.info(f"Discovered: {stats.get('discovered_count', '?')} businesses")
     logger.info(f"After dedup: {stats.get('after_dedup', '?')}")
     logger.info(f"After qualification: {stats.get('qualified_at_qualify', '?')} kept, {stats.get('rejected_at_qualify', '?')} rejected")
-    logger.info(f"After LLM: {stats.get('qualified_after_llm', '?')} qualified, {stats.get('rejected_after_llm', '?')} rejected")
+    logger.info(f"After LLM: {stats.get('qualified_after_llm', '?')} qualified, {stats.get('rejected_after_llm', '?')} rejected, {stats.get('unprocessed_after_llm', '?')} unprocessed")
 
+    all_extracted = final_state.get("extracted_leads", [])
     qualified = final_state.get("qualified_leads", [])
     enriched = final_state.get("enriched_leads", [])
     errors = final_state.get("errors", [])
 
-    if qualified:
+    if all_extracted:
         with SessionLocal() as db:
-            for lead in qualified:
+            for lead in all_extracted:
                 db_lead = DBLead(
                     business_name=lead.extracted_data.business_name,
                     decision_maker_name=lead.extracted_data.decision_maker_name,
@@ -66,7 +67,23 @@ def run(config_path: str = "config/config.yaml"):
                 )
                 db.add(db_lead)
             db.commit()
-            logger.info(f"Saved {len(qualified)} qualified leads to database.")
+            logger.info(f"Saved {len(all_extracted)} leads to database ({len(qualified)} qualified, {len(all_extracted) - len(qualified)} other).")
+    else:
+        logger.warning("No leads extracted — saving raw discovered businesses as unprocessed.")
+        raw_biz = final_state.get("raw_businesses", [])
+        if raw_biz:
+            with SessionLocal() as db:
+                for b in raw_biz:
+                    db_lead = DBLead(
+                        business_name=b.name or "Unknown",
+                        phone_number=b.phone or "Not Found",
+                        lead_status="Discovered - Awaiting Processing",
+                        confidence_score=1,
+                        reasoning_log=f"Raw discovery only. Source: {b.source}. URL: {b.website or 'None'}"
+                    )
+                    db.add(db_lead)
+                db.commit()
+                logger.info(f"Saved {len(raw_biz)} raw discovered businesses as fallback.")
 
     output_dir = settings.export.output_dir
     formats = settings.export.formats

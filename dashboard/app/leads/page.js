@@ -3,6 +3,37 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+function StatusBadge({ status }) {
+  if (status?.includes("Qualified")) {
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Qualified</span>;
+  }
+  if (status?.includes("Rejected")) {
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Rejected</span>;
+  }
+  if (status === "Unprocessed - LLM Unavailable") {
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Unprocessed</span>;
+  }
+  if (status === "Discovered - Awaiting Processing") {
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Raw</span>;
+  }
+  return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{status || "Unknown"}</span>;
+}
+
+function ConfidenceBar({ score }) {
+  const s = score || 0;
+  let color = "bg-red-500";
+  if (s >= 70) color = "bg-green-500";
+  else if (s >= 40) color = "bg-yellow-500";
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${s}%` }} />
+      </div>
+      <span className="text-xs font-medium">{s}%</span>
+    </div>
+  );
+}
+
 export default function LeadsPage() {
   const [leads, setLeads] = useState([]);
   const [stats, setStats] = useState({});
@@ -45,6 +76,8 @@ export default function LeadsPage() {
           <h1 className="text-3xl font-bold">Browse Leads</h1>
           <p className="text-[var(--muted)] mt-1">
             {stats.total || 0} total leads found
+            {stats.qualified > 0 && <span className="ml-2">· {stats.qualified} qualified</span>}
+            {stats.unprocessed > 0 && <span className="ml-2">· {stats.unprocessed} unprocessed</span>}
           </p>
         </div>
         <Link
@@ -55,8 +88,8 @@ export default function LeadsPage() {
         </Link>
       </div>
 
-      <div className="flex gap-4 mb-6 items-center">
-        <form onSubmit={handleSearch} className="flex-1 flex gap-2">
+      <div className="flex gap-4 mb-6 items-center flex-wrap">
+        <form onSubmit={handleSearch} className="flex-1 min-w-[200px] flex gap-2">
           <input
             type="text"
             placeholder="Search by business name, phone, or email..."
@@ -79,6 +112,8 @@ export default function LeadsPage() {
           <option value="all">All Status</option>
           <option value="Qualified - No Website">Qualified</option>
           <option value="Rejected - Has Website">Rejected</option>
+          <option value="Unprocessed - LLM Unavailable">Unprocessed</option>
+          <option value="Discovered - Awaiting Processing">Raw</option>
         </select>
       </div>
 
@@ -126,35 +161,17 @@ export default function LeadsPage() {
                     </td>
                     <td className="px-6 py-3">{lead.decision_maker_name || "—"}</td>
                     <td className="px-6 py-3">
-                      <span
-                        className={
-                          lead.lead_status?.includes("Qualified")
-                            ? "text-[var(--success)]"
-                            : "text-[var(--danger)]"
-                        }
-                      >
-                        {lead.lead_status?.includes("Qualified")
-                          ? "Qualified"
-                          : "Rejected"}
-                      </span>
+                      <StatusBadge status={lead.lead_status} />
                     </td>
                     <td className="px-6 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 bg-gray-200 rounded-full">
-                          <div
-                            className="h-full rounded-full bg-[var(--primary)]"
-                            style={{ width: `${lead.confidence_score || 0}%` }}
-                          />
-                        </div>
-                        <span className="text-xs">{lead.confidence_score || 0}%</span>
-                      </div>
+                      <ConfidenceBar score={lead.confidence_score} />
                     </td>
                     <td className="px-6 py-3">
                       <Link
                         href={`/leads/${lead.id}`}
-                        className="text-[var(--primary)] hover:underline text-xs"
+                        className="text-[var(--primary)] hover:underline text-xs font-medium"
                       >
-                        View
+                        View →
                       </Link>
                     </td>
                   </tr>
@@ -166,22 +183,51 @@ export default function LeadsPage() {
       </div>
 
       {pagination.totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-6">
-          {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(
-            (p) => (
-              <button
-                key={p}
-                onClick={() => fetchLeads(p)}
-                className={`px-3 py-1 rounded text-sm ${
-                  p === pagination.page
-                    ? "bg-[var(--primary)] text-white"
-                    : "border border-[var(--border)] hover:bg-gray-50"
-                }`}
-              >
-                {p}
-              </button>
-            )
-          )}
+        <div className="flex items-center justify-center gap-2 mt-6">
+          <button
+            onClick={() => fetchLeads(pagination.page - 1)}
+            disabled={pagination.page <= 1}
+            className="px-3 py-1.5 rounded text-sm border border-[var(--border)] hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            ← Prev
+          </button>
+          <div className="flex gap-1">
+            {Array.from({ length: Math.min(pagination.totalPages, 7) }, (_, i) => {
+              let p;
+              if (pagination.totalPages <= 7) {
+                p = i + 1;
+              } else if (pagination.page <= 4) {
+                p = i + 1;
+              } else if (pagination.page >= pagination.totalPages - 3) {
+                p = pagination.totalPages - 6 + i;
+              } else {
+                p = pagination.page - 3 + i;
+              }
+              return (
+                <button
+                  key={p}
+                  onClick={() => fetchLeads(p)}
+                  className={`px-3 py-1.5 rounded text-sm ${
+                    p === pagination.page
+                      ? "bg-[var(--primary)] text-white"
+                      : "border border-[var(--border)] hover:bg-gray-50"
+                  }`}
+                >
+                  {p}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={() => fetchLeads(pagination.page + 1)}
+            disabled={pagination.page >= pagination.totalPages}
+            className="px-3 py-1.5 rounded text-sm border border-[var(--border)] hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Next →
+          </button>
+          <span className="text-xs text-[var(--muted)] ml-2">
+            Page {pagination.page} of {pagination.totalPages}
+          </span>
         </div>
       )}
     </div>

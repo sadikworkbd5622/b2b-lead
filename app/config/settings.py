@@ -14,6 +14,7 @@ class SearchConfig(BaseModel):
     queries: list[SearchQuery]
     max_results_per_query: int = 20
     delay_between_requests: float = 2.0
+    fuzzy_dedup_threshold: float = 0.0
 
 
 class ApiConfig(BaseModel):

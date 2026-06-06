@@ -4,8 +4,10 @@ search:
       location: "Dallas, TX"
     - query: "plumbers"
       location: "Austin, TX"
-  max_results_per_query: 20
-  delay_between_requests: 2
+  max_results_per_query: 10
+  delay_between_requests: 3
+  # 0=disabled, 0.85=recommended. Uses difflib.SequenceMatcher on business names
+  fuzzy_dedup_threshold: 0.85
 
 api:
   provider: "serpapi"

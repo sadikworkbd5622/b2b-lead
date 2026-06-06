@@ -12,6 +12,6 @@ class ExtractedData(BaseModel):
 
 class ExtractedLead(BaseModel):
     reasoning_log: str = Field(description="Briefly explain why this business was qualified or rejected, specifically noting your analysis of their web presence.")
-    lead_status: Literal["Qualified - No Website", "Rejected - Has Website"]
+    lead_status: Literal["Qualified - No Website", "Rejected - Has Website", "Unprocessed - LLM Unavailable"]
     extracted_data: ExtractedData
     confidence_score: int = Field(ge=1, le=100)
