@@ -164,12 +164,14 @@ class PipelineNodes:
             tasks = [self.checker.check_website(b.website) for b in raw_businesses]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            for business, status in zip(raw_businesses, results):
-                if isinstance(status, Exception):
-                    logger.warning(f"Website check failed for {business.name}: {status}")
+            from app.qualification.models import WebsiteStatus
+            for business, raw_status in zip(raw_businesses, results):
+                if isinstance(raw_status, BaseException):
+                    logger.warning(f"Website check failed for {business.name}: {raw_status}")
                     rejected.append(business)
                     continue
 
+                status: WebsiteStatus = raw_status
                 if status.url_type == URLType.DEDICATED_WEBSITE and status.is_live:
                     rejected.append(business)
                 else:
@@ -213,6 +215,8 @@ class PipelineNodes:
                 continue
 
             try:
+                import time
+                time.sleep(4.1) # Delay to respect Gemini's free tier limit of 15 requests/minute
                 lead = self.extractor.extract(b)
                 extracted.append(lead)
             except Exception as e:
@@ -245,6 +249,14 @@ class PipelineNodes:
     def enrich_node(self, state: PipelineState) -> dict[str, Any]:
         logger.info("--- ENRICHMENT NODE ---")
         stats = dict(state.get("stats", {}))
+
+        if not self.enricher:
+            logger.info("No enricher configured. Skipping enrichment.")
+            return {
+                "enriched_leads": [],
+                "current_step": "enrichment_complete",
+                "stats": stats
+            }
 
         async def _run():
             tasks = []
