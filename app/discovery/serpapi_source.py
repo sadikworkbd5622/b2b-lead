@@ -75,7 +75,9 @@ class SerpApiSource(DataSource):
                 if attempt < self.max_retries - 1:
                     sleep_time = self.base_delay * (2 ** attempt)
                     time.sleep(sleep_time)
-        raise last_exception
+        if last_exception:
+            raise last_exception
+        raise requests.RequestException("Failed to make request or max_retries is 0")
 
     def search(self, query: str, location: str, max_results: int = 20) -> list[RawBusinessData]:
         results: list[RawBusinessData] = []
